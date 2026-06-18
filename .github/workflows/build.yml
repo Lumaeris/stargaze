@@ -1,0 +1,165 @@
+---
+name: Build container image
+on:
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "30 06 * * *" # 06:30am UTC everyday
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/README.md"
+  workflow_dispatch:
+
+env:
+  IMAGE_DESC: "Stargaze"
+  IMAGE_KEYWORDS: "bootc,arch,bootcrew"
+  IMAGE_LOGO_URL: "https://avatars.githubusercontent.com/u/10499845?s=200&v=4"
+  IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
+  DEFAULT_TAG: "latest"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ inputs.brand_name }}-${{ inputs.stream_name }}
+  cancel-in-progress: true
+
+jobs:
+  build_push:
+    name: Build and push image
+    runs-on: ubuntu-26.04
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image_name:
+          - stargaze-nvidia
+
+    steps:
+      - name: Prepare environment
+        run: |
+          # Lowercase the image uri
+          echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> ${GITHUB_ENV}
+          echo "IMAGE_NAME=${{ matrix.image_name }}" >> ${GITHUB_ENV}
+
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Free disk space
+        uses: hastd/free-disk-space@68572aeaadb7f76bd408246328e95926323402b5 # v0.1.2
+        with:
+          skip-if-available: "64G"
+
+      - name: Get current date
+        id: date
+        run: |
+          # This generates a timestamp like what is defined on the ArtifactHub documentation
+          # E.G: 2022-02-08T15:38:15Z'
+          # https://artifacthub.io/docs/topics/repositories/container-images/
+          # https://linux.die.net/man/1/date
+          echo "date=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)" >> $GITHUB_OUTPUT
+
+      - name: Image Metadata
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        id: metadata
+        with:
+          tags: |
+            type=raw,value=${{ env.DEFAULT_TAG }}
+            type=raw,value=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
+            type=raw,value={{date 'YYYYMMDD'}}
+            type=sha,enable=${{ github.event_name == 'pull_request' }}
+            type=ref,event=pr
+          labels: |
+            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}/${{ github.sha }}/README.md
+            org.opencontainers.image.created=${{ steps.date.outputs.date }}
+            org.opencontainers.image.description=${{ env.IMAGE_DESC }}
+            org.opencontainers.image.documentation=https://raw.githubusercontent.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}/${{ github.sha }}/README.md
+            org.opencontainers.image.source=https://github.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}/blob/${{ github.sha }}/Containerfile
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.url=https://github.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}/tree/${{ github.sha }}
+            org.opencontainers.image.vendor=${{ github.repository_owner }}
+            org.opencontainers.image.version=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
+            io.artifacthub.package.deprecated=false
+            io.artifacthub.package.keywords=${{ env.IMAGE_KEYWORDS }}
+            io.artifacthub.package.license=Apache-2.0
+            io.artifacthub.package.logo-url=${{ env.IMAGE_LOGO_URL }}
+            io.artifacthub.package.prerelease=false
+            containers.bootc=1
+          sep-tags: " "
+          sep-annotations: " "
+
+      - name: Build Image
+        id: build_image
+        env:
+          META_LABELS: ${{ steps.metadata.outputs.labels }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -x
+
+          # get labels from metadata action
+          while IFS= read -r label; do
+          if [[ -n "$label" ]]; then
+            BUILD_ARGS+=("--label" "$label")
+          fi
+          done <<< "$META_LABELS"
+
+          podman build "${BUILD_ARGS[@]}" --tag "$IMAGE_NAME:$DEFAULT_TAG" .
+
+      # using rpm-ostree compose build-chunked-oci directly
+      - name: Rechunk Image
+        run: |
+          export CHUNKAH_CONFIG_STR="$(podman inspect "$IMAGE_NAME:$DEFAULT_TAG)"
+          podman run --rm "--mount=type=image,src=$IMAGE_NAME,target=/chunkah" \
+              -e CHUNKAH_CONFIG_STR quay.io/coreos/chunkah:latest build --compressed \
+              --max-layers 128 --tag "$IMAGE_NAME:$DEFAULT_TAG"
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOGIN_USER: ${{ github.actor }}
+        run: |
+          echo "${GITHUB_TOKEN}" | podman login -u "${LOGIN_USER}" --password-stdin "ghcr.io"
+
+      - name: Push to GHCR
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        id: push
+        env:
+          IMAGE_REGISTRY: ${{ env.IMAGE_REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          IMAGE_TAGS: ${{ steps.metadata.outputs.tags }}
+          SIGNING_SECRET: ${{ secrets.SIGNING_SECRET }}
+          MAX_RETRIES: 3
+        run: |
+          set -x
+
+          PRIVATE_KEY_FILE="$(mktemp)"
+          echo "${SIGNING_SECRET}" > "${PRIVATE_KEY_FILE}"
+          trap 'rm -f $PRIVATE_KEY_FILE' EXIT
+          sudo mkdir -p "/etc/containers/registries.d/"
+          echo -e "docker:\n  ${IMAGE_REGISTRY}:\n    use-sigstore-attachments: true" | sudo tee "/etc/containers/registries.d/${REPOSITORY_OWNER}.yaml"
+
+          log_sum() { echo "$1" >> $GITHUB_STEP_SUMMARY; }
+          log_sum '# Push to GHCR result'
+          log_sum '```'
+
+          # HACK: push two times so layer annotations are present
+          # TODO: remove me when https://github.com/containers/podman/issues/27796 fixed
+          for _ in $(seq 2); do
+            for tag in $IMAGE_TAGS; do
+              podman push --compression-format=zstd "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" \
+                "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}" --sign-passphrase-file=/dev/null \
+                --sign-by-sigstore-private-key=${PRIVATE_KEY_FILE} --retry=${MAX_RETRIES}
+            done
+          done
+
+          for tag in $IMAGE_TAGS; do
+            log_sum "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
+          done
+
+          log_sum '```'
