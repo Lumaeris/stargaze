@@ -110,10 +110,9 @@ jobs:
 
           podman build "${BUILD_ARGS[@]}" --tag "$IMAGE_NAME:$DEFAULT_TAG" .
 
-      # using rpm-ostree compose build-chunked-oci directly
       - name: Rechunk Image
         run: |
-          export CHUNKAH_CONFIG_STR="$(podman inspect "$IMAGE_NAME:$DEFAULT_TAG)"
+          export CHUNKAH_CONFIG_STR="$(podman inspect "$IMAGE_NAME:$DEFAULT_TAG")"
           podman run --rm "--mount=type=image,src=$IMAGE_NAME,target=/chunkah" \
               -e CHUNKAH_CONFIG_STR quay.io/coreos/chunkah:latest build --compressed \
               --max-layers 128 --tag "$IMAGE_NAME:$DEFAULT_TAG"
