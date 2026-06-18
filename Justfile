@@ -34,4 +34,4 @@ rechunk $image_name=image_name:
     export CHUNKAH_CONFIG_STR="$(podman inspect "${image_name}:latest")"
     podman run --rm "--mount=type=image,src=${image_name},target=/chunkah" \
         -e CHUNKAH_CONFIG_STR quay.io/coreos/chunkah:latest build --compressed \
-        --max-layers 128 --tag "${image_name}:latest"
+        --max-layers 128 --tag "${image_name}:latest" | podman load
