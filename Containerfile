@@ -66,6 +66,13 @@ RUN --mount=type=tmpfs,dst=/tmp \
 # Resulting system
 FROM arch AS system
 
+# Add uupd mainly for autoupdate purposes
+COPY --from=builder /uupd/ /
+
+# Check if "AS builder" actually did something, podman can skip it for no apparent reason
+# If this command fails then there's no point in going forward, we need this
+RUN stat /usr/bin/uupd
+
 # Add bootc repo by Hec (https://github.com/hecknt/arch-bootc-pkgs)
 RUN --mount=type=tmpfs,dst=/run \
     pacman-key --recv-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB --keyserver keyserver.ubuntu.com && \
@@ -160,9 +167,6 @@ RUN --mount=type=tmpfs,dst=/run \
         gnome-keyring && \
     pacman -S --clean --noconfirm
 
-# Add uupd mainly for autoupdate purposes
-COPY --from=builder /uupd/ /
-
 # Container things
 RUN --mount=type=tmpfs,dst=/run \
     pacman -Sy --noconfirm podman \
@@ -209,7 +213,8 @@ RUN --mount=type=tmpfs,dst=/run \
     unzip arch.zip && \
     cp MapleMono-* LICENSE.txt /usr/share/fonts/maple-mono-nf && \
     popd && \
-    setfattr -n user.component -v "maple-mono-nf" /usr/share/fonts/maple-mono-nf
+    setfattr -n user.component -v "maple-mono-nf" /usr/share/fonts/maple-mono-nf && \
+    fc-cache --force --really-force --system-only --verbose
 
 # Add Chaotic AUR
 # They do human reviews on each packaging change way before recent AUR malware attacks
