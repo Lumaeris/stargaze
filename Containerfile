@@ -193,7 +193,9 @@ RUN --mount=type=tmpfs,dst=/run \
         vim \
         git \
         plymouth \
-        zram-generator && \
+        zram-generator \
+        man-db \
+        man-pages && \
     pacman -S --clean --noconfirm
 
 # Fonts
