@@ -55,6 +55,11 @@ jobs:
         with:
           skip-if-available: "64G"
 
+      - name: Install just
+        run: |
+          sudo apt update
+          sudo apt install -y just
+
       - name: Get current date
         id: date
         run: |
@@ -93,28 +98,16 @@ jobs:
           sep-annotations: " "
 
       - name: Build Image
-        id: build_image
-        env:
-          META_LABELS: ${{ steps.metadata.outputs.labels }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -x
-
-          # get labels from metadata action
-          while IFS= read -r label; do
-          if [[ -n "$label" ]]; then
-            BUILD_ARGS+=("--label" "$label")
-          fi
-          done <<< "$META_LABELS"
-
-          podman build "${BUILD_ARGS[@]}" --tag "$IMAGE_NAME:$DEFAULT_TAG" .
+          set -e
+          env BUILD_IMAGE_NAME=${IMAGE_NAME} just build
 
       - name: Rechunk Image
+        env:
+          META_LABELS: ${{ steps.metadata.outputs.labels }}
         run: |
-          export CHUNKAH_CONFIG_STR="$(podman inspect "$IMAGE_NAME:$DEFAULT_TAG")"
-          podman run --rm "--mount=type=image,src=$IMAGE_NAME,target=/chunkah" \
-              -e CHUNKAH_CONFIG_STR quay.io/coreos/chunkah:latest build --compressed \
-              --max-layers 128 --tag "$IMAGE_NAME:$DEFAULT_TAG" | podman load
+          set -e
+          env BUILD_IMAGE_NAME=${IMAGE_NAME} IMAGE_LABELS=${META_LABELS} just rechunk
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
