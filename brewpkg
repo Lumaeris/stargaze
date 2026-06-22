@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc="The Missing Package Manager for macOS (or Linux)"
 arch=(x86_64)
 url="https://github.com/Lumaeris/stargaze.git"
-makedepends=('git' 'curl' 'zstd')
+makedepends=('sudo' 'git' 'curl' 'zstd')
 depends=('git' 'curl' 'zstd')
 provides=('brew')
 conflicts=('brew' 'brew-git' 'linuxbrew' 'linuxbrew-git')
@@ -21,11 +21,13 @@ prepare() {
 }
 
 build() {
-    mkdir .linuxbrew
     env --ignore-environment "PATH=/usr/bin:/bin:/usr/sbin:/sbin" "HOME=/home/linuxbrew" "NONINTERACTIVE=1" /usr/bin/bash ${pkgname}/install.sh
 }
 
 package() {
     cp -a "${srcdir}/ublue-brew/system_files/." "${pkgdir}"
-    tar --zstd -cvf "${pkgdir}/usr/share/${pkgname}.tar.zst" "${srcdir}/.linuxbrew"
+    cd ${srcdir}
+    mkdir -p home/linuxbrew
+    mv .linuxbrew home/linuxbrew/
+    tar --zstd -cvf "${pkgdir}/usr/share/${pkgname}.tar.zst" "home/linuxbrew/.linuxbrew"
 }
