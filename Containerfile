@@ -37,7 +37,7 @@ RUN --mount=type=tmpfs,dst=/run \
 FROM arch AS builder
 
 RUN --mount=type=tmpfs,dst=/run \
-    pacman -Sy --noconfirm --needed git rust go meson curl zstd base-devel && \
+    pacman -Sy --noconfirm --needed git rust go meson && \
     pacman -S --clean --noconfirm
 
 # Temporarily force uupd to pass "-y" flag to "brew upgrade" until it gets a new release
@@ -62,18 +62,6 @@ RUN --mount=type=tmpfs,dst=/tmp \
     meson compile -C build && \
     DESTDIR=/brew-proxy meson install -C build && \
     popd
-
-# Temporarily trying out packaging Homebrew as proper Arch package
-RUN mkdir /homebrew && \
-    useradd --no-create-home --shell=/bin/false build && usermod -L build && \
-    echo "build ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
-    echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
-    chown -R build /homebrew
-USER build
-
-COPY brewpkg /homebrew/PKGBUILD
-WORKDIR /homebrew
-RUN makepkg && rm -f homebrew-debug-*
 
 # Resulting system
 FROM arch AS system
@@ -247,11 +235,12 @@ RUN mkdir -p /usr/share/nautilus-python/extensions && \
     curl --retry 3 -Lo /usr/share/nautilus-python/extensions/xdg-terminal-exec-nautilus.py https://raw.githubusercontent.com/zirconium-dev/xdg-terminal-exec-nautilus/refs/heads/main/xdg-terminal-exec-nautilus.py
 
 # Add Homebrew
-COPY --from=builder /homebrew/homebrew-* /
 RUN --mount=type=tmpfs,dst=/run \
-    pacman -U --noconfirm homebrew-* && \
-    pacman -S --clean --noconfirm && \
-    rm -f /homebrew-*
+    pacman-key --recv-key F88AD54AC93B084021C2BB69FC179FA0288C0734 --keyserver keyserver.ubuntu.com && \
+    pacman-key --lsign-key F88AD54AC93B084021C2BB69FC179FA0288C0734 && \
+    echo -e '[homebrew]\nSigLevel = Required\nServer = https://github.com/Lumaeris/homebrew-arch/releases/download/$repo' >> /etc/pacman.conf && \
+    pacman -Sy --noconfirm homebrew/homebrew && \
+    pacman -S --clean --noconfirm
 
 # Add brew-proxy so it can run in homed
 COPY --from=builder /brew-proxy/ /
