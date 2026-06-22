@@ -249,9 +249,6 @@ COPY --from=builder /brew-proxy/ /
 COPY files /
 COPY cosign.pub /usr/lib/pki/containers/lumaeris.pub
 
-# Ensure interactive bash shells have the same workarounds as zsh
-RUN echo -e 'source /etc/profile.d/brew.sh' | tee -a /etc/bash.bashrc
-
 # Setup systemd services
 RUN systemctl preset-all && \
     systemctl preset-all --global
