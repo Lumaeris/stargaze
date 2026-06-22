@@ -8,7 +8,7 @@ options := if selinux == "true" { "-v /var/lib/containers:/var/lib/containers:Z 
 container_runtime := env("CONTAINER_RUNTIME", `command -v podman >/dev/null 2>&1 && echo podman || echo docker`)
 
 build $image_name=image_name:
-    {{container_runtime}} build -t "${image_name}:latest" . --skip-unused-stages=false
+    {{container_runtime}} build -t "${image_name}:latest" .
 
 bootc $image_name=image_name $image_tag=image_tag *ARGS:
     sudo {{container_runtime}} run \

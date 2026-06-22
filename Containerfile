@@ -37,7 +37,7 @@ RUN --mount=type=tmpfs,dst=/run \
 FROM arch AS builder
 
 RUN --mount=type=tmpfs,dst=/run \
-    pacman -Sy --noconfirm git rust go meson && \
+    pacman -Sy --noconfirm --needed git rust go meson curl zstd base-devel && \
     pacman -S --clean --noconfirm
 
 # Temporarily force uupd to pass "-y" flag to "brew upgrade" until it gets a new release
@@ -63,15 +63,23 @@ RUN --mount=type=tmpfs,dst=/tmp \
     DESTDIR=/brew-proxy meson install -C build && \
     popd
 
+# Temporarily trying out packaging Homebrew as proper Arch package
+RUN mkdir /homebrew && \
+    useradd --no-create-home --shell=/bin/false build && usermod -L build && \
+    echo "build ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    echo "root ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+    chown -R build /homebrew
+USER build
+
+COPY brewpkg /homebrew/PKGBUILD
+WORKDIR /homebrew
+RUN makepkg && rm -f homebrew-debug-*
+
 # Resulting system
 FROM arch AS system
 
 # Add uupd mainly for autoupdate purposes
 COPY --from=builder /uupd/ /
-
-# Check if "AS builder" actually did something, podman can skip it for no apparent reason
-# If this command fails then there's no point in going forward, we need this
-RUN stat /usr/bin/uupd
 
 # Add bootc repo by Hec (https://github.com/hecknt/arch-bootc-pkgs)
 RUN --mount=type=tmpfs,dst=/run \
@@ -239,9 +247,11 @@ RUN mkdir -p /usr/share/nautilus-python/extensions && \
     curl --retry 3 -Lo /usr/share/nautilus-python/extensions/xdg-terminal-exec-nautilus.py https://raw.githubusercontent.com/zirconium-dev/xdg-terminal-exec-nautilus/refs/heads/main/xdg-terminal-exec-nautilus.py
 
 # Add Homebrew
-# Maybe eventually migrate from uBlue solution at some point
-COPY --from=ghcr.io/ublue-os/brew:latest /system_files/ /
-RUN setfattr -n user.component -v "homebrew" /usr/share/homebrew.tar.zst
+COPY --from=builder /homebrew/homebrew-* /
+RUN --mount=type=tmpfs,dst=/run \
+    pacman -U --noconfirm homebrew-* && \
+    pacman -S --clean --noconfirm && \
+    rm -f /homebrew-*
 
 # Add brew-proxy so it can run in homed
 COPY --from=builder /brew-proxy/ /
