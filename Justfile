@@ -32,6 +32,8 @@ disk-image $image_name=image_name $image_tag=image_tag $base_dir=base_dir $files
 
 rechunk $image_name=image_name $image_tag=image_tag $image_labels=image_labels:
     #!/usr/bin/env bash
+    set -x
+    
     export CHUNKAH_CONFIG_STR="$({{container_runtime}} inspect "${image_name}:${image_tag}")"
 
     # add labels from IMAGE_LABELS
