@@ -33,16 +33,14 @@ disk-image $image_name=image_name $image_tag=image_tag $base_dir=base_dir $files
 rechunk $image_name=image_name $image_tag=image_tag $image_labels=image_labels:
     #!/usr/bin/env bash
     set -x
-    
+
     export CHUNKAH_CONFIG_STR="$({{container_runtime}} inspect "${image_name}:${image_tag}")"
 
     # add labels from IMAGE_LABELS
-    while IFS= read -r label; do
-    if [[ -n "$label" ]]; then
+    for label in ${image_labels}; do
         BUILD_ARGS+=("--label" "$label")
-    fi
-    done <<< "${image_labels}"
+    done
 
     {{container_runtime}} run --rm "--mount=type=image,src=${image_name},target=/chunkah" \
         -e CHUNKAH_CONFIG_STR quay.io/coreos/chunkah:latest build --compressed \
-        --max-layers 128 --tag "${image_name}:${image_tag}" "${BUILD_ARGS[@]}" | podman load
+        --max-layers 128 --tag "${image_name}:${image_tag}" "${BUILD_ARGS[@]}" | {{container_runtime}} load
