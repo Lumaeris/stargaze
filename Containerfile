@@ -30,6 +30,7 @@ RUN touch /var/log/pacman.log && \
 
 # Updating everything since bootstrap only updates monthly as their ISOs
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Syu --noconfirm && \
     pacman -S --clean --noconfirm
     
@@ -61,12 +62,14 @@ COPY --from=builder /uupd/ /
 
 # Add bootc repo by Hec (https://github.com/hecknt/arch-bootc-pkgs)
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman-key --recv-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB --keyserver keyserver.ubuntu.com && \
     pacman-key --lsign-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB && \
     echo -e '[bootc]\nSigLevel = Required\nServer = https://github.com/hecknt/arch-bootc-pkgs/releases/download/$repo' >> /etc/pacman.conf
 
 # Install base packages
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm --needed base \
         dracut \
         cpio \
@@ -87,6 +90,7 @@ RUN --mount=type=tmpfs,dst=/run \
 
 # Audio
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm pipewire \
         pipewire-pulse \
         pipewire-jack \
@@ -96,6 +100,7 @@ RUN --mount=type=tmpfs,dst=/run \
 # Install GPU drivers
 # TODO: split nvidia to its own image
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm --needed mesa \
         mesa-utils \
         xorg-xwayland \
@@ -113,6 +118,7 @@ RUN --mount=type=tmpfs,dst=/run \
 
 # Install DankMaterialShell and Niri
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm dms-shell-niri \
         xdg-desktop-portal-gtk \
         xdg-desktop-portal-gnome && \
@@ -120,6 +126,7 @@ RUN --mount=type=tmpfs,dst=/run \
 
 # DMS optional dependencies
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm matugen \
         cava \
         cups-pk-helper \
@@ -134,6 +141,7 @@ RUN --mount=type=tmpfs,dst=/run \
 
 # Network and bluetooth
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm networkmanager \
         bluez \
         bluez-utils && \
@@ -141,6 +149,7 @@ RUN --mount=type=tmpfs,dst=/run \
 
 # Terminal
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm foot \
         foot-terminfo \
         libnotify && \
@@ -148,6 +157,7 @@ RUN --mount=type=tmpfs,dst=/run \
 
 # Polkit, sudo and keyring
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm sudo \
         lxqt-policykit \
         gnome-keyring && \
@@ -155,17 +165,20 @@ RUN --mount=type=tmpfs,dst=/run \
 
 # Container things
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm podman \
         distrobox && \
     pacman -S --clean --noconfirm
 
 # Flatpak
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm flatpak && \
     pacman -S --clean --noconfirm
 
 # General tools
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm --needed gnome-disk-utility \
         udiskie \
         nautilus-python \
@@ -207,6 +220,7 @@ RUN --mount=type=tmpfs,dst=/run \
 # Add Chaotic AUR
 # They do human reviews on each packaging change way before recent AUR malware attacks
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com && \
     pacman-key --lsign-key 3056513887B78AEB && \
     pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' \
@@ -216,6 +230,7 @@ RUN --mount=type=tmpfs,dst=/run \
 
 # Install some stuff from Chaotic AUR
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman -Sy --noconfirm chaotic-aur/input-remapper-git \
         chaotic-aur/xdg-terminal-exec-git && \
     pacman -S --clean --noconfirm
@@ -226,6 +241,7 @@ RUN mkdir -p /usr/share/nautilus-python/extensions && \
 
 # Add Homebrew and brew-proxy
 RUN --mount=type=tmpfs,dst=/run \
+    --mount=type=tmpfs,dst=/tmp \
     pacman-key --recv-key F88AD54AC93B084021C2BB69FC179FA0288C0734 --keyserver keyserver.ubuntu.com && \
     pacman-key --lsign-key F88AD54AC93B084021C2BB69FC179FA0288C0734 && \
     echo -e '[homebrew]\nSigLevel = Required\nServer = https://github.com/Lumaeris/homebrew-arch/releases/download/$repo' >> /etc/pacman.conf && \
