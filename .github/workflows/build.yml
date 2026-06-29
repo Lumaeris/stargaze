@@ -78,44 +78,17 @@ jobs:
             type=raw,value={{date 'YYYYMMDD'}}
             type=sha,enable=${{ github.event_name == 'pull_request' }}
             type=ref,event=pr
-          labels: |
-            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/README.md
-            org.opencontainers.image.created=${{ steps.date.outputs.date }}
-            org.opencontainers.image.description=${{ env.IMAGE_DESC }}
-            org.opencontainers.image.documentation=https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/README.md
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}/blob/${{ github.sha }}/Containerfile
-            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
-            org.opencontainers.image.url=https://github.com/${{ github.repository }}/tree/${{ github.sha }}
-            org.opencontainers.image.vendor=${{ github.repository_owner }}
-            org.opencontainers.image.version=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
-            io.artifacthub.package.deprecated=false
-            io.artifacthub.package.keywords=${{ env.IMAGE_KEYWORDS }}
-            io.artifacthub.package.license=Apache-2.0
-            io.artifacthub.package.logo-url=${{ env.IMAGE_LOGO_URL }}
-            io.artifacthub.package.prerelease=false
-            containers.bootc=1
           sep-tags: " "
-          sep-annotations: " "
 
       - name: Build Image
         run: |
           set -e
-          env BUILD_IMAGE_NAME=${IMAGE_NAME} just build
+          env CI=true BUILD_IMAGE_NAME=${IMAGE_NAME} just build
 
       - name: Rechunk Image
-        env:
-          META_LABELS: ${{ steps.metadata.outputs.labels }}
         run: |
-          set -xe
-
-          # add labels to IMAGE_LABELS
-          while IFS= read -r label; do
-          if [[ -n "$label" ]]; then
-              BUILD_ARGS+=("$label")
-          fi
-          done <<< "${META_LABELS}"
-
-          env BUILD_IMAGE_NAME=${IMAGE_NAME} IMAGE_LABELS="${BUILD_ARGS[@]}" just rechunk
+          set -e
+          env BUILD_IMAGE_NAME=${IMAGE_NAME} just rechunk
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
