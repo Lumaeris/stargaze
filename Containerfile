@@ -37,7 +37,7 @@ RUN --mount=type=tmpfs,dst=/run \
 FROM arch AS builder
 
 RUN --mount=type=tmpfs,dst=/run \
-    pacman -Sy --noconfirm --needed git rust go meson && \
+    pacman -Sy --noconfirm --needed git go && \
     pacman -S --clean --noconfirm
 
 # Temporarily force uupd to pass "-y" flag to "brew upgrade" until it gets a new release
@@ -51,16 +51,6 @@ RUN --mount=type=tmpfs,dst=/tmp \
     install -Dpm 644 uupd.service /uupd/usr/lib/systemd/system/uupd.service && \
     install -Dpm 644 uupd.timer /uupd/usr/lib/systemd/system/uupd.timer && \
     install -Dpm 644 uupd.rules /uupd/etc/polkit-1/rules.d/uupd.rules && \
-    popd
-
-# Using a commit with added SELinux Meson option for now
-RUN --mount=type=tmpfs,dst=/tmp \
-    git clone https://codeberg.org/HastD/brew-proxy.git /tmp/brew-proxy && \
-    pushd /tmp/brew-proxy && \
-    git checkout 5f03f3c5dc6c42bd2feef889e044194c1dc1cc50 && \
-    meson setup build -Dprefix=/usr -Dselinux=disabled && \
-    meson compile -C build && \
-    DESTDIR=/brew-proxy meson install -C build && \
     popd
 
 # Resulting system
@@ -234,16 +224,13 @@ RUN --mount=type=tmpfs,dst=/run \
 RUN mkdir -p /usr/share/nautilus-python/extensions && \
     curl --retry 3 -Lo /usr/share/nautilus-python/extensions/xdg-terminal-exec-nautilus.py https://raw.githubusercontent.com/zirconium-dev/xdg-terminal-exec-nautilus/refs/heads/main/xdg-terminal-exec-nautilus.py
 
-# Add Homebrew
+# Add Homebrew and brew-proxy
 RUN --mount=type=tmpfs,dst=/run \
     pacman-key --recv-key F88AD54AC93B084021C2BB69FC179FA0288C0734 --keyserver keyserver.ubuntu.com && \
     pacman-key --lsign-key F88AD54AC93B084021C2BB69FC179FA0288C0734 && \
     echo -e '[homebrew]\nSigLevel = Required\nServer = https://github.com/Lumaeris/homebrew-arch/releases/download/$repo' >> /etc/pacman.conf && \
-    pacman -Sy --noconfirm homebrew/homebrew && \
+    pacman -Sy --noconfirm homebrew/homebrew homebrew/brew-proxy && \
     pacman -S --clean --noconfirm
-
-# Add brew-proxy so it can run in homed
-COPY --from=builder /brew-proxy/ /
 
 # Add system files
 COPY files /
