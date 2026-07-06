@@ -263,8 +263,8 @@ RUN sed -i 's/.*pam_shells.*//g' /etc/pam.d/system-login
 RUN echo -e 'auth\toptional\tpam_gnome_keyring.so\nsession\toptional\tpam_gnome_keyring.so auto_start' | tee -a /etc/pam.d/system-login
 
 # Fix rootless podman
-RUN setcap -r /usr/bin/newuidmap && \
-    setcap -r /usr/bin/newgidmap && \
+RUN setcap -f -r /usr/bin/newuidmap && \
+    setcap -f -r /usr/bin/newgidmap && \
     chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
 
 # Remove machine-id
