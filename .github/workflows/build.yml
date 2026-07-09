@@ -58,6 +58,11 @@ jobs:
             /opt/hostedtoolcache/Python
           skip-if-available: "64G"
 
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          submodules: true
+
       - name: Install just
         run: |
           sudo apt update
