@@ -5,4 +5,5 @@ mkosi.output/
 mkosi.cache/
 mkosi.tools/
 mkosi.tools.manifest
+mkosi.version
 cache/
