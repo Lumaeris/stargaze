@@ -14,10 +14,14 @@ default:
 
 alias build := build-bootc
 
-build-bootc $profiles=profiles:
+build-bootc $profiles=profiles $ci=ci:
     #!/usr/bin/env bash
+    ADDIT_ARGS=()
+    if [[ {{ci}} == "true" ]]; then
+        ADDIT_ARGS+=("--tools-tree-distribution=arch")
+    fi
 
-    mkosi -B --debug --profile={{profiles}}
+    mkosi -B --debug --profile={{profiles}} ${ADDIT_ARGS}
 
 lint $image_name=image_name $image_tag=image_tag:
     {{container_runtime}} run --rm -it --entrypoint=bootc "${image_name}:${image_tag}" container lint

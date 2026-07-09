@@ -100,7 +100,7 @@ jobs:
             profiles="brew,bootc"
           fi
 
-          env BUILD_PROFILES=${profiles} just build
+          env CI=true BUILD_PROFILES=${profiles} just build
 
       - name: Load Image
         run: |
