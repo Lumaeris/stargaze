@@ -79,17 +79,6 @@ jobs:
       - name: Render configuration (for debugging)
         run: mkosi cat-config --debug
 
-      - name: Image Metadata
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        id: metadata
-        with:
-          tags: |
-            type=raw,value=${{ env.DEFAULT_TAG }}
-            type=raw,value={{date 'YYYYMMDD'}}
-            type=sha,enable=${{ github.event_name == 'pull_request' }}
-            type=ref,event=pr
-          sep-tags: " "
-
       - name: Build Image
         run: |
           set -e
@@ -112,11 +101,28 @@ jobs:
           set -e
           env BUILD_IMAGE_NAME=${IMAGE_NAME} just lint
 
+      - name: Get Version
+        id: getversion
+        run: |
+          set -e
+          echo "image_version=$(cat mkosi.version)" >> "$GITHUB_OUTPUT"
+
       - name: Rechunk Image
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         run: |
           set -e
           env CI=true BUILD_IMAGE_NAME=${IMAGE_NAME} just rechunk
+
+      - name: Image Metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        id: metadata
+        with:
+          tags: |
+            type=raw,value=${{ env.DEFAULT_TAG }}
+            type=raw,value=${{ steps.getversion.outputs.image_version }}
+            type=sha,enable=${{ github.event_name == 'pull_request' }}
+            type=ref,event=pr
+          sep-tags: " "
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
