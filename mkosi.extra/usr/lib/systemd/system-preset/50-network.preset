@@ -1,0 +1,6 @@
+enable bluetooth.service
+enable NetworkManager.service
+enable podman.socket
+enable systemd-resolved.service
+disable avahi.*
+disable avahi-daemon.*
