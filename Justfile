@@ -3,7 +3,7 @@ image_tag := env("BUILD_IMAGE_TAG", "latest")
 base_dir := env("BUILD_BASE_DIR", ".")
 filesystem := env("BUILD_FILESYSTEM", "btrfs")
 selinux := env("BUILD_SELINUX", `stat /sys/fs/selinux/status >/dev/null 2>&1 && echo true || echo false`)
-profiles := env("BUILD_PROFILES", "brew bootc")
+profiles := env("BUILD_PROFILES", "brew,bootc")
 ci := env("CI", "false")
 
 options := if selinux == "true" { "-v /var/lib/containers:/var/lib/containers:Z -v /sys/fs/selinux:/sys/fs/selinux --security-opt label=type:unconfined_t" } else { "-v /var/lib/containers:/var/lib/containers" }
@@ -13,22 +13,11 @@ default:
     @just --list
 
 alias build := build-bootc
-alias i := interactive-build
-
-[script]
-interactive-build:
-    selected=$(ls mkosi.profiles | fzf -m --header="Press tab to select profiles to include in build")
-    profiles=$(echo "$selected" | tr '\n' ' ' | sed 's/ $//')
-    just build-bootc "$profiles"
 
 build-bootc $profiles=profiles:
     #!/usr/bin/env bash
 
-    for profile in {{profiles}}; do
-        args="$args --profile $profile"
-    done
-
-    mkosi -B --debug ${args}
+    mkosi -B --debug --profile={{profiles}}
 
 lint $image_name=image_name $image_tag=image_tag:
     {{container_runtime}} run --rm -it --entrypoint=bootc "${image_name}:${image_tag}" container lint
