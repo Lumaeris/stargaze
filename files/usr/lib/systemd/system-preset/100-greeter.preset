@@ -1,7 +1,0 @@
-enable greetd.service
-enable systemd-homed-firstboot.service
-enable systemd-zram-setup@zram0.service
-enable uupd.timer
-enable nvctk-cdi.service
-disable brew-update.timer
-disable brew-upgrade.timer

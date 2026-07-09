@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -xeuo pipefail
+
+if [ ! -e "${SRCDIR}/cache/maple-mono-nf" ] ; then
+    mkdir -p "${SRCDIR}/cache/temp"
+    mkdir -p "${SRCDIR}/cache/maple-mono-nf"
+    curl --retry 3 -Lo "${SRCDIR}/cache/temp/maple-mono-nf.zip" https://github.com/subframe7536/maple-font/releases/latest/download/MapleMono-NF-unhinted.zip
+    pushd "${SRCDIR}/cache/temp"
+        unzip maple-mono-nf.zip
+        cp MapleMono-* LICENSE.txt "${SRCDIR}/cache/maple-mono-nf"
+    popd
+    rm -rf "${SRCDIR}/cache/temp"
+fi

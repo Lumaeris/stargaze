@@ -1,2 +1,8 @@
 cosign.key
 bootable.img
+.mkosi-private/
+mkosi.output/
+mkosi.cache/
+mkosi.tools/
+mkosi.tools.manifest
+cache/

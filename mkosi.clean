@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eo nounset
+
+rm -rf "$OUTPUTDIR"/"$IMAGE_ID"*
+rm -rf "$SRCDIR/cache"

@@ -38,6 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         image_name:
+          - stargaze
           - stargaze-nvidia
 
     steps:
@@ -53,6 +54,8 @@ jobs:
       - name: Free disk space
         uses: hastd/free-disk-space@68572aeaadb7f76bd408246328e95926323402b5 # v0.1.2
         with:
+          exclude: |
+            /opt/hostedtoolcache/Python
           skip-if-available: "64G"
 
       - name: Install just
@@ -60,14 +63,16 @@ jobs:
           sudo apt update
           sudo apt install -y just
 
-      - name: Get current date
-        id: date
-        run: |
-          # This generates a timestamp like what is defined on the ArtifactHub documentation
-          # E.G: 2022-02-08T15:38:15Z'
-          # https://artifacthub.io/docs/topics/repositories/container-images/
-          # https://linux.die.net/man/1/date
-          echo "date=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)" >> $GITHUB_OUTPUT
+      # using last known working version of mkosi for working with arch
+      - name: Install mkosi
+        uses: systemd/mkosi@c4c3d793d0f6f0a2f26895de5ed9382396f36bb5
+
+      - name: Set mkosi.version
+        # We need to do this because mkosi.version is not persistent between builds on CI
+        run: skopeo list-tags docker://${IMAGE_REGISTRY}/${IMAGE_NAME} | jq --arg date "$(date -u +%Y%m%d)" -r '.Tags[] | select(startswith($date+"."))' | sort -n | tail -1 > mkosi.version
+
+      - name: Render configuration (for debugging)
+        run: mkosi cat-config --debug
 
       - name: Image Metadata
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -83,12 +88,30 @@ jobs:
       - name: Build Image
         run: |
           set -e
-          env CI=true BUILD_IMAGE_NAME=${IMAGE_NAME} just build
 
-      - name: Rechunk Image
+          if [[ ${IMAGE_NAME} =~ "nvidia" ]]; then
+            profiles="brew nvidia bootc"
+          else
+            profiles="brew bootc"
+          fi
+
+          env BUILD_PROFILES=${profiles} just build
+
+      - name: Load Image
         run: |
           set -e
-          env BUILD_IMAGE_NAME=${IMAGE_NAME} just rechunk
+          env CI=true BUILD_IMAGE_NAME=${IMAGE_NAME} just load
+
+      - name: Lint Image
+        run: |
+          set -e
+          env BUILD_IMAGE_NAME=${IMAGE_NAME} just lint
+
+      - name: Rechunk Image
+        if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        run: |
+          set -e
+          env CI=true BUILD_IMAGE_NAME=${IMAGE_NAME} just rechunk
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
@@ -120,17 +143,10 @@ jobs:
           log_sum '# Push to GHCR result'
           log_sum '```'
 
-          # HACK: push two times so layer annotations are present
-          # TODO: remove me when https://github.com/containers/podman/issues/27796 fixed
-          for _ in $(seq 2); do
-            for tag in $IMAGE_TAGS; do
-              podman push --compression-format=zstd "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" \
-                "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}" --sign-passphrase-file=/dev/null \
-                --sign-by-sigstore-private-key=${PRIVATE_KEY_FILE} --retry=${MAX_RETRIES}
-            done
-          done
-
           for tag in $IMAGE_TAGS; do
+            podman push --compression-format=zstd "localhost/${IMAGE_NAME}:${DEFAULT_TAG}" \
+              "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}" --sign-passphrase-file=/dev/null \
+              --sign-by-sigstore-private-key=${PRIVATE_KEY_FILE} --retry=${MAX_RETRIES}
             log_sum "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
           done
 

@@ -1,3 +1,0 @@
-enable bluetooth.service
-enable NetworkManager.service
-enable podman.socket

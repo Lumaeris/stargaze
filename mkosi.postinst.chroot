@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -xeuo pipefail
+
+# Add Maple Mono fonts
+mkdir -p /usr/share/fonts/maple-mono-nf
+cp -r "${SRCDIR}/cache/maple-mono-nf" /usr/share/fonts
+setfattr -n user.component -v "maple-mono-nf" /usr/share/fonts/maple-mono-nf
+fc-cache --force --really-force --system-only --verbose
+
+# Setup systemd services
+systemctl preset-all
+systemctl preset-all --global
+
+# Fix PAM bs (pam_shells breaks systemd-homed user auth)
+sed -i 's/.*pam_shells.*//g' /etc/pam.d/system-login
+
+# Add gnome keyring PAM support for both greetd and tty login
+echo -e 'auth\toptional\tpam_gnome_keyring.so\nsession\toptional\tpam_gnome_keyring.so auto_start' \
+    | tee -a /etc/pam.d/system-login
+
+# Fix rootless podman
+setcap -f -r /usr/bin/newuidmap
+setcap -f -r /usr/bin/newgidmap
+chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap
+
+# Remove machine-id
+rm /etc/machine-id
+
+# Set new os-release
+cat > /usr/lib/os-release <<EOF
+NAME="Stargaze"
+ID="stargaze"
+ID_LIKE="arch"
+BUILD_ID="rolling"
+PRETTY_NAME="Stargaze"
+HOME_URL="https://github.com/Lumaeris/stargaze"
+SUPPORT_URL="https://github.com/Lumaeris/stargaze/issues"
+LOGO="archlinux-logo"
+DEFAULT_HOSTNAME="stargaze"
+IMAGE_VERSION="$(date -u "+%Y%m%d")"
+EOF
+
+# Link /etc/os-release to its equivalent in /usr/lib/os-release
+ln -sf ../usr/lib/os-release /etc/os-release
+
+# Give the greeter a dummy home folder to avoid some errors
+usermod greeter --home /run/greetd
