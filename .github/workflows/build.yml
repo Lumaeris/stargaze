@@ -67,7 +67,7 @@ jobs:
 
       # using last known working version of mkosi for working with arch
       - name: Install mkosi
-        uses: systemd/mkosi@c4c3d793d0f6f0a2f26895de5ed9382396f36bb5
+        uses: systemd/mkosi@205dcedd452ac444a28acd1ce5cc0db4d31c83fc
 
       - name: Set mkosi.version
         # We need to do this because mkosi.version is not persistent between builds on CI
