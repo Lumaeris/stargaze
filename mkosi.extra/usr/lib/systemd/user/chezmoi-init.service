@@ -1,0 +1,12 @@
+[Unit]
+Description=Initializes Chezmoi if directory is missing
+ConditionPathExists=!%h/.config/stargaze/chezmoi
+
+[Service]
+ExecStart=mkdir -p %h/.config/stargaze/chezmoi
+ExecStart=touch %h/.config/stargaze/chezmoi/chezmoi.toml
+ExecStart=chezmoi apply -S /usr/share/stargaze/dotfiles --config %h/.config/stargaze/chezmoi/chezmoi.toml
+Type=oneshot
+
+[Install]
+WantedBy=graphical-session-pre.target

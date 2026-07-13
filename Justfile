@@ -34,6 +34,12 @@ load $image_name=image_name $image_tag=image_tag $ci=ci:
         sudo rm -rf mkosi.output/
     fi
 
+to-rootful $image_name=image_name $image_tag=image_tag:
+    #!/usr/bin/env bash
+    # maybe it only works with podman, shrug
+    set -x
+    sudo {{container_runtime}} image scp "$USER@localhost::${image_name}:${image_tag}" root@localhost::
+
 bootc $image_name=image_name $image_tag=image_tag *ARGS:
     sudo {{container_runtime}} run \
         --rm --privileged --pid=host \

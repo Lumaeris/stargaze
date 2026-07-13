@@ -1,0 +1,8 @@
+[Unit]
+Description=Chezmoi Update
+
+[Service]
+ExecStart=mkdir -p %h/.config/stargaze/chezmoi
+ExecStart=touch %h/.config/stargaze/chezmoi/chezmoi.toml
+ExecStart=sh -c 'yes s | chezmoi apply --no-tty --keep-going -S /usr/share/stargaze/dotfiles --verbose --config %h/.config/stargaze/chezmoi/chezmoi.toml'
+Type=oneshot
