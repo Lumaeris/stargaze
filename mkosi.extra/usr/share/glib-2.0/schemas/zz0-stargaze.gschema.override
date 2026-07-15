@@ -1,0 +1,14 @@
+[org.gnome.desktop.wm.preferences]
+button-layout='appmenu:'
+
+[org.gnome.desktop.interface]
+color-scheme='prefer-dark'
+
+[org.gtk.Settings.FileChooser]
+sort-directories-first=true
+
+[org.gtk.gtk4.Settings.FileChooser]
+sort-directories-first=true
+
+[org.gnome.nautilus.preferences]
+show-create-link=true
