@@ -7,6 +7,9 @@ cp -r "${SRCDIR}/cache/maple-mono-nf" /usr/share/fonts
 setfattr -n user.component -v "maple-mono-nf" /usr/share/fonts/maple-mono-nf
 fc-cache --force --really-force --system-only --verbose
 
+# Fool DMS to not show changelogs at start (I don't really need to read them :D)
+touch "/usr/share/stargaze/dotfiles/dot_config/DankMaterialShell/.changelog-$(dms version | cut -c 6-8)"
+
 # Setup systemd services
 systemctl preset-all
 systemctl preset-all --global
