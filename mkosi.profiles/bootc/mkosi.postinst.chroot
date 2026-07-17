@@ -46,13 +46,6 @@ tee -a /etc/pacman.conf <<EOL
 DBPath = /usr/lib/sysimage/lib/pacman/
 EOL
 
-# Add multilib to pacman config
-tee -a /etc/pacman.conf <<EOL
-
-[multilib]
-Include = /etc/pacman.d/mirrorlist
-EOL
-
 # Disable the pacman sandbox
 # OCI runtimes (such as containerd) do not have proper support for landlock, 
 # which means pacman breaks when this image is running in a container.
