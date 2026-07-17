@@ -10,3 +10,6 @@
 [submodule "subprojects/xdg-terminal-exec-nautilus"]
 	path = subprojects/xdg-terminal-exec-nautilus
 	url = https://github.com/zirconium-dev/xdg-terminal-exec-nautilus.git
+[submodule "subprojects/bootc-tools"]
+	path = subprojects/bootc-tools
+	url = https://github.com/Smujb/bootc-tools.git
