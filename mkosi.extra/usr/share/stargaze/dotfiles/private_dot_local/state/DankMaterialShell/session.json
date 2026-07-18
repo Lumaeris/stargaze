@@ -89,6 +89,6 @@
   "appDrawerLastMode": "apps",
   "niriOverviewLastMode": "apps",
   "settingsSidebarExpandedIds": ",personalization,",
-  "settingsSidebarCollapsedIds": ",",
+  "settingsSidebarCollapsedIds": ",network,workspaces_widgets,power_security,dankbar,dock_launcher,displays,system,applications,",
   "configVersion": 3
 }
