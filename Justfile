@@ -3,7 +3,7 @@ image_tag := env("BUILD_IMAGE_TAG", "latest")
 base_dir := env("BUILD_BASE_DIR", ".")
 filesystem := env("BUILD_FILESYSTEM", "btrfs")
 selinux := env("BUILD_SELINUX", `stat /sys/fs/selinux/status >/dev/null 2>&1 && echo true || echo false`)
-profiles := env("BUILD_PROFILES", "brew,bootc")
+profiles := env("BUILD_PROFILES", "brew,dms,bootc")
 ci := env("CI", "false")
 
 options := if selinux == "true" { "-v /var/lib/containers:/var/lib/containers:Z -v /sys/fs/selinux:/sys/fs/selinux --security-opt label=type:unconfined_t" } else { "-v /var/lib/containers:/var/lib/containers" }

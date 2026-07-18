@@ -81,9 +81,9 @@ jobs:
           set -e
 
           if [[ ${IMAGE_NAME} =~ "nvidia" ]]; then
-            profiles="brew,nvidia,bootc"
+            profiles="brew,dms,nvidia,bootc"
           else
-            profiles="brew,bootc"
+            profiles="brew,dms,bootc"
           fi
 
           env CI=true BUILD_PROFILES=${profiles} just build
