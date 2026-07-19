@@ -61,14 +61,21 @@ disk-image $image_name=image_name $image_tag=image_tag $base_dir=base_dir $files
 
 rechunk $image_name=image_name $image_tag=image_tag $ci=ci:
     #!/usr/bin/env bash
-    export CHUNKAH_CONFIG_STR="$({{container_runtime}} inspect "${image_name}:${image_tag}")"
+    set -eoux pipefail
+
+    CHUNKAH_OUTPUT_DIR="$(mktemp -d)"
+    CHUNKAH_CONFIG_FILE="$(mktemp)"
+
+    trap 'rm -f "${CHUNKAH_CONFIG_FILE}"; rm -rf "${CHUNKAH_OUTPUT_DIR}"' EXIT
+    podman inspect "${image_name}:${image_tag}" > "${CHUNKAH_CONFIG_FILE}"
+
     # Labels
     LABELS=("--label" "containers.bootc=1")
     if [[ {{ci}} == "true" ]]; then
         LABELS+=("--label" "io.artifacthub.package.deprecated=false")
         LABELS+=("--label" "io.artifacthub.package.prerelease=false")
         LABELS+=("--label" "io.artifacthub.package.license=Apache-2.0")
-        LABELS+=("--label" "io.artifacthub.package.keywords=bootc,arch,bootcrew")
+        LABELS+=("--label" "io.artifacthub.package.keywords=bootc,archlinux,bootcrew,mkosi,systemd-homed")
         LABELS+=("--label" "io.artifacthub.package.logo-url=https://avatars.githubusercontent.com/u/10499845?s=200&v=4")
         LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/Lumaeris/stargaze/refs/heads/main/README.md")
         LABELS+=("--label" "org.opencontainers.image.created=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)")
@@ -85,9 +92,24 @@ rechunk $image_name=image_name $image_tag=image_tag $ci=ci:
             LABELS+=("--label" "org.opencontainers.image.revision=deadbeef")
         fi
     fi
+
     {{container_runtime}} run --rm "--mount=type=image,src=${image_name},target=/chunkah" \
-        -e CHUNKAH_CONFIG_STR quay.io/coreos/chunkah:latest build --compressed \
-        --max-layers 128 --tag "${image_name}:${image_tag}" "${LABELS[@]}" | {{container_runtime}} load
+        -v "${CHUNKAH_CONFIG_FILE}:/chunkah-config.json:ro,Z" \
+        -v "${CHUNKAH_OUTPUT_DIR}:/run/out:Z" \
+        quay.io/coreos/chunkah:latest build \
+        --verbose \
+        --compressed \
+        --max-layers 128 \
+        "${LABELS[@]}" \
+        --config /chunkah-config.json \
+        --output oci:/run/out/chunked
+
+    if [[ {{ci}} == "true" ]]; then
+        {{container_runtime}} image rm "${image_name}:${image_tag}"
+    fi
+
+    CHUNKED_IMAGE="$({{container_runtime}} pull "oci:${CHUNKAH_OUTPUT_DIR}/chunked")"
+    {{container_runtime}} tag "${CHUNKED_IMAGE}" "${image_name}:${image_tag}"
 
 clean:
     mkosi clean
