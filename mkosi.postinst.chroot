@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -xeuo pipefail
 
+KERNEL_PATH="$(find /usr/lib/modules -maxdepth 1 -type d | grep -v -E "*.img" | tail -n 1)"
+dracut --verbose --force "${KERNEL_PATH}/initramfs.img" --kver "$(basename "${KERNEL_PATH}")"
+
 # Add Maple Mono fonts
 mkdir -p /usr/share/fonts/maple-mono-nf
 cp -r "${SRCDIR}/cache/maple-mono-nf" /usr/share/fonts
@@ -10,11 +13,7 @@ fc-cache --force --really-force --system-only --verbose
 # Recompile schemas
 glib-compile-schemas /usr/share/glib-2.0/schemas
 
-# Setup systemd services
-systemctl preset-all
-systemctl preset-all --global
-
-# Fix PAM bs (pam_shells breaks systemd-homed user auth)
+# Fix PAM breakage (pam_shells breaks systemd-homed user auth)
 sed -i 's/.*pam_shells.*//g' /etc/pam.d/system-login
 
 # Add gnome keyring PAM support for both greetd and tty login
@@ -40,7 +39,6 @@ HOME_URL="https://github.com/Lumaeris/stargaze"
 SUPPORT_URL="https://github.com/Lumaeris/stargaze/issues"
 LOGO="archlinux-logo"
 DEFAULT_HOSTNAME="stargaze"
-IMAGE_VERSION="$(date -u "+%Y%m%d")"
 EOF
 
 # Link /etc/os-release to its equivalent in /usr/lib/os-release
@@ -48,3 +46,24 @@ ln -sf ../usr/lib/os-release /etc/os-release
 
 # Give the greeter a dummy home folder to avoid some errors
 usermod greeter --home /run/greetd
+
+# This goes along with the DBPath modification in pacman.conf to make `bootc usroverlay` work properly
+mkdir -p "/usr/lib/sysimage/lib"
+mv "/var/lib/pacman" "/usr/lib/sysimage/lib/pacman"
+
+# Make sure that pacman is using the DB from /usr/lib/sysimage rather than the one in /var 
+tee -a /etc/pacman.conf <<EOL
+
+[options]
+DBPath = /usr/lib/sysimage/lib/pacman/
+EOL
+
+# Disable the pacman sandbox
+# OCI runtimes (such as containerd) do not have proper support for landlock, 
+# which means pacman breaks when this image is running in a container.
+# In particular, custom images are broken, since pacman does not work when building them.
+sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf
+
+# Reinitalise the pacman keyring for future pacman use
+pacman-key --init
+pacman-key --populate
